@@ -26,6 +26,10 @@ void print_interfaces() {
     }
 };
 
+void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
+
+}
+
 int main(int argc, char *argv[]) {
     // initialize variables with default values
     char interface[MAX] = "";
@@ -144,6 +148,21 @@ int main(int argc, char *argv[]) {
     if (count == 0) {
         count = 1;
     }
+
+    // Check if the interface is valid
+    handle = pcap_open_live(interface, BUFSIZ, 1, 1000, err_buf);
+    if (handle == NULL) {
+        fprintf(stderr, "Error: %s\n", err_buf);
+        exit(2);
+    }
+
+    // Check if the interface provides Ethernet headers
+    if (pcap_datalink(handle) != DLT_EN10MB) {
+        fprintf(stderr, "Device %s doesn't provide Ethernet headers - not supported\n", interface);
+        return (2);
+    }
+
+    pcap_loop(handle, count, packet_handler, NULL);
 
     return 0;
 }
