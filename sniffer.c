@@ -30,6 +30,59 @@ void print_interfaces() {
     }
 };
 
+// Helper function to add a protocol to the filter expression
+void add_protocol(char* filter_str, const char* protocol_name, bool* empty) {
+    if (*empty) {
+        strcat(filter_str, protocol_name);
+        *empty = false;
+    } else {
+        strcat(filter_str, " or ");
+        strcat(filter_str, protocol_name);
+    }
+}
+
+// Helper function to add a port to the filter expression
+void add_port(char* filter_str, int port_num, bool* empty, int tcp_flag, int udp_flag) {
+    char port_number[20];
+    sprintf(port_number, "%d", port_num);
+
+    // Adding port to the expression
+    strcpy(filter_str, "port ");
+    strcat(filter_str, port_number);
+    if (tcp_flag && udp_flag || !tcp_flag && !udp_flag){
+        strcat(filter_str, " and (tcp or udp)");
+    } else if (tcp_flag) {
+        strcat(filter_str, " and tcp ");
+    } else if (udp_flag) {
+        strcat(filter_str, " and udp ");
+    }
+    // Set the empty flag to false
+    *empty = false;
+}
+
+// This function creates a filter expression based on the given flags
+void
+create_filter_expression(char* filter_str, int port, int tcp_flag, int udp_flag, int arp_flag, int icmp4_flag, int icmp6_flag, int ndp_flag, int igmp_flag, int mld_flag) {
+    bool port_flag = (port != -1);
+    bool empty = true;
+
+    // Add the port and tcp/udp flags to the filter expression if the port flag is set
+    port_flag? add_port(filter_str, port, &empty, tcp_flag, udp_flag) : 0;
+
+    // Add the protocols to the filter expression if the protocol flags are set
+    if (!port_flag){
+        tcp_flag? add_protocol(filter_str, "tcp", &empty) : 0;
+        udp_flag? add_protocol(filter_str, "udp", &empty) : 0;
+    }
+    arp_flag? add_protocol(filter_str, "arp", &empty) : 0;
+    icmp4_flag? add_protocol(filter_str, "icmp", &empty) : 0;
+    icmp6_flag? add_protocol(filter_str, "icmp6 and (icmp6[0] == 128 or icmp6[0] == 129)", &empty) : 0;
+    igmp_flag? add_protocol(filter_str, "igmp", &empty) : 0;
+    mld_flag? add_protocol(filter_str, "(icmp6 and (icmp6[0] == 135 or icmp6[0] == 136))", &empty) : 0;
+    ndp_flag? add_protocol(filter_str, "(icmp6 and (icmp6[0] == 130 or icmp6[0] == 131))", &empty) : 0;
+
+}
+
 void timeval_to_string(struct timeval time, const char *format) {
     time_t time_in_sec = time.tv_sec;
     char buffer[64];
@@ -149,6 +202,8 @@ int main(int argc, char *argv[]) {
     int count = -1;
 
     pcap_t *handle;
+    struct bpf_program filter;
+    char filter_exp[255] = "";
 
     // define the program's command line options and their corresponding parameters
     static struct option long_options[] =
@@ -266,7 +321,26 @@ int main(int argc, char *argv[]) {
         return (2);
     }
 
+    // Create the filter expression
+    create_filter_expression(filter_exp, port, tcp_flag, udp_flag, arp_flag, icmp4_flag, icmp6_flag, ndp_flag,
+                             igmp_flag, mld_flag);
+
+    printf("Filter expression: %s\n", filter_exp);
+
+    // Compile the filter expression
+    if (pcap_compile(handle, &filter, filter_exp, 0, PCAP_NETMASK_UNKNOWN) == -1) {
+        fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
+        return (2);
+    }
+
+    // Apply the filter expression
+    if (pcap_setfilter(handle, &filter) == -1) {
+        fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(handle));
+        return (2);
+    }
+
     pcap_loop(handle, count, packet_handler, NULL);
+    pcap_freecode(&filter);
     pcap_close(handle);
 
     return 0;
