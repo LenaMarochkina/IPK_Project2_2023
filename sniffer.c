@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <pcap.h>
+#include <time.h>
 
 #define MAX 101
 char err_buf[PCAP_ERRBUF_SIZE];
@@ -26,7 +27,42 @@ void print_interfaces() {
     }
 };
 
+void timeval_to_string(struct timeval time, const char *format) {
+    time_t time_in_sec = time.tv_sec;
+    char buffer[64];
+    struct tm* timeInfo;
+    time_t unix_time = (time_t) time_in_sec;
+    timeInfo = localtime(&unix_time);
+    strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S", timeInfo);
+
+    // Get the local time zone
+    char timezone_buffer[6];
+    strftime(timezone_buffer, 6, "%z", timeInfo);
+
+    // Convert the timezone offset to ISO 8601 format
+    char timezone_offset[7];
+    timezone_offset[0] = timezone_buffer[0];
+    timezone_offset[1] = timezone_buffer[1];
+    timezone_offset[2] = timezone_buffer[2];
+    timezone_offset[3] = ':';
+    timezone_offset[4] = timezone_buffer[3];
+    timezone_offset[5] = timezone_buffer[4];
+    timezone_offset[6] = '\0';
+
+    printf("%s.%03ld%s\n", buffer, time_in_sec % 1000, timezone_offset);
+}
+
 void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
+    // print the timestamp of the packet
+    printf("timestamp: ");
+    timeval_to_string(header->ts, "%Y-%m-%d %H:%M:%S");
+
+    // print mac addresses
+    printf("src mac: %02x:%02x:%02x:%02x:%02x:%02x\n", packet[6], packet[7], packet[8], packet[9], packet[10], packet[11]);
+    printf("dst mac: %02x:%02x:%02x:%02x:%02x:%02x\n", packet[0], packet[1], packet[2], packet[3], packet[4], packet[5]);
+
+    // print the length of the packet
+    printf("frame length: %d bytes\n", header->len);
 
 }
 
