@@ -6,6 +6,9 @@
 #include <ctype.h>
 #include <pcap.h>
 #include <time.h>
+#include <net/ethernet.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 
 #define MAX 101
 char err_buf[PCAP_ERRBUF_SIZE];
@@ -73,6 +76,43 @@ void print_ip_and_port(char* src_ip, char* dst_ip, u_char *packet) {
     printf("dst port: %d\n", dst_port);
 }
 
+// This function takes in a pointer to an array of bytes (uint8_t), as well as the size of the array
+void print_package_data(uint8_t *data, size_t size) {
+    // Initialize two size_t variables, i and j
+    size_t i, j;
+    // Loop through the array in increments of 16 (i.e. print 16 bytes at a time)
+    for (i = 0; i < size; i += 16) {
+        // Print the current index in the array (in hexadecimal format)
+        printf("0x%04x: ", (unsigned int)i);
+        for (j = i; j < i + 16 && j < size; j++) {
+            printf("%02x ", data[j]);
+            if ((j + 1) % 8 == 0) {
+                printf(" ");
+            }
+        }
+        // If there are less than 16 bytes left to print, fill the remaining space with blank spaces (for formatting purposes).
+        for (; j < i + 16; j++) {
+            printf("   ");
+            if ((j + 1) % 8 == 0) {
+                printf(" ");
+            }
+        }
+        // Print a space before printing the ASCII representation of the bytes.
+        printf(" ");
+        // Loop through the next 16 bytes, or until the end of the array (whichever comes first).
+        for (j = i; j < i + 16 && j < size; j++) {
+            if (data[j] >= 32 && data[j] <= 126) {
+                printf("%c", data[j]);
+            } else {
+                printf(".");
+            }
+        }
+        // Print a newline character at the end of each 16-byte row.
+        printf("\n");
+    }
+}
+
+
 void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
     // print the timestamp of the packet
     printf("timestamp: ");
@@ -89,6 +129,9 @@ void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char
 
     print_ip_and_port((char*) packet + 26, (char*) packet + 30, (u_char*) packet);
 
+    // print the package data
+    printf("\n");
+    print_package_data((uint8_t*) packet, header->len);
 }
 
 int main(int argc, char *argv[]) {
