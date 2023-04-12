@@ -52,6 +52,27 @@ void timeval_to_string(struct timeval time, const char *format) {
     printf("%s.%03ld%s\n", buffer, time_in_sec % 1000, timezone_offset);
 }
 
+void print_ip_and_port(char* src_ip, char* dst_ip, u_char *packet) {
+    // Convert the source IP address from binary to string format
+    char src_ip_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &src_ip, src_ip_str, INET_ADDRSTRLEN);
+
+    // Convert the destination IP address from binary to string format
+    char dst_ip_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &dst_ip, dst_ip_str, INET_ADDRSTRLEN);
+
+    // Print out the source IP address and port number
+    printf("src IP: %s\n", src_ip_str);
+    printf("dst IP: %s\n", dst_ip_str);
+
+    // Print out the destination IP address and port number
+    uint16_t src_port = ntohs(*(uint16_t*)(packet + 34));
+    uint16_t dst_port = ntohs(*(uint16_t*)(packet + 36));
+
+    printf("src port: %d\n", src_port);
+    printf("dst port: %d\n", dst_port);
+}
+
 void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
     // print the timestamp of the packet
     printf("timestamp: ");
@@ -64,12 +85,16 @@ void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char
     // print the length of the packet
     printf("frame length: %d bytes\n", header->len);
 
+    // print IP address and port
+
+    print_ip_and_port((char*) packet + 26, (char*) packet + 30, (u_char*) packet);
+
 }
 
 int main(int argc, char *argv[]) {
     // initialize variables with default values
     char interface[MAX] = "";
-    int port = 0;
+    int port = -1;
     bool tcp_flag = 0;
     bool udp_flag = 0;
     bool icmp4_flag = 0;
@@ -78,7 +103,7 @@ int main(int argc, char *argv[]) {
     bool ndp_flag = 0;
     bool igmp_flag = 0;
     bool mld_flag = 0;
-    int count = 0;
+    int count = -1;
 
     pcap_t *handle;
 
@@ -180,8 +205,8 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
-    //If the number of packets to capture is not provided, set it to 1
-    if (count == 0) {
+    // If the number of packets to capture is not provided, set it to 1
+    if (count == -1) {
         count = 1;
     }
 
@@ -199,6 +224,7 @@ int main(int argc, char *argv[]) {
     }
 
     pcap_loop(handle, count, packet_handler, NULL);
+    pcap_close(handle);
 
     return 0;
 }
