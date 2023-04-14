@@ -9,9 +9,16 @@
 #include <net/ethernet.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <netinet/ip6.h>
 
-#define MAX 101
 char err_buf[PCAP_ERRBUF_SIZE];
+
+//
+struct ethernet {
+    u_char ether_dhost[ETHER_ADDR_LEN]; // Destination host address
+    u_char ether_shost[ETHER_ADDR_LEN]; // Source host address
+    u_short ether_type; // IP? ARP? RARP? etc
+};
 
 // This function prints the names of all available network interfaces
 void print_interfaces() {
@@ -108,18 +115,39 @@ void timeval_to_string(struct timeval time, const char *format) {
     printf("%s.%03ld%s\n", buffer, time_in_sec % 1000, timezone_offset);
 }
 
-void print_ip_and_port(char* src_ip, char* dst_ip, u_char *packet) {
-    // Convert the source IP address from binary to string format
-    char src_ip_str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &src_ip, src_ip_str, INET_ADDRSTRLEN);
+void print_ip_and_port(u_char *packet) {
+    // Print out the source IP address for v4 and v6
+    const struct ethernet *ethernet = (struct ethernet*)(packet);
 
-    // Convert the destination IP address from binary to string format
-    char dst_ip_str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &dst_ip, dst_ip_str, INET_ADDRSTRLEN);
+// Check if the Ethernet type is IPv4
+    if (ntohs(ethernet->ether_type) == ETHERTYPE_IP) {
+        // Define char arrays to store the source and destination IP addresses
+        char src_ip[INET_ADDRSTRLEN];
+        char dst_ip[INET_ADDRSTRLEN];
+        // Extract the source IP address from the packet using inet_ntop and store it in src_ip
+        inet_ntop(AF_INET, packet + 26, src_ip, INET_ADDRSTRLEN);
+        // Extract the destination IP address from the packet using inet_ntop and store it in dst_ip
+        inet_ntop(AF_INET, packet + 30, dst_ip, INET_ADDRSTRLEN);
+        // Print out the source and destination IP addresses
+        printf("src IP: %s\n", src_ip);
+        printf("dst IP: %s\n", dst_ip);
+    }
+// Check if the Ethernet type is IPv6
+    else if (ntohs(ethernet->ether_type) == ETHERTYPE_IPV6) {
+        // Define a pointer to an IPv6 header and set it to the start of the IPv6 packet
+        struct ip6_hdr *ip6 = (struct ip6_hdr*)(packet + sizeof (struct ethernet));
+        // Define char arrays to store the source and destination IPv6 addresses
+        char src_ip[INET6_ADDRSTRLEN];
+        char dst_ip[INET6_ADDRSTRLEN];
+        // Extract the source IPv6 address from the packet using inet_ntop and store it in src_ip
+        inet_ntop(AF_INET6, &ip6->ip6_src, src_ip, INET6_ADDRSTRLEN);
+        // Extract the destination IPv6 address from the packet using inet_ntop and store it in dst_ip
+        inet_ntop(AF_INET6, &ip6->ip6_dst, dst_ip, INET6_ADDRSTRLEN);
+        // Print out the source and destination IPv6 addresses
+        printf("src IP: %s\n", src_ip);
+        printf("dst IP: %s\n", dst_ip);
+    }
 
-    // Print out the source IP address and port number
-    printf("src IP: %s\n", src_ip_str);
-    printf("dst IP: %s\n", dst_ip_str);
 
     // Print out the destination IP address and port number
     uint16_t src_port = ntohs(*(uint16_t*)(packet + 34));
@@ -139,19 +167,12 @@ void print_package_data(uint8_t *data, size_t size) {
         printf("0x%04x: ", (unsigned int)i);
         for (j = i; j < i + 16 && j < size; j++) {
             printf("%02x ", data[j]);
-            if ((j + 1) % 8 == 0) {
-                printf(" ");
-            }
         }
         // If there are less than 16 bytes left to print, fill the remaining space with blank spaces (for formatting purposes).
         for (; j < i + 16; j++) {
             printf("   ");
-            if ((j + 1) % 8 == 0) {
-                printf(" ");
-            }
         }
         // Print a space before printing the ASCII representation of the bytes.
-        printf(" ");
         // Loop through the next 16 bytes, or until the end of the array (whichever comes first).
         for (j = i; j < i + 16 && j < size; j++) {
             if (data[j] >= 32 && data[j] <= 126) {
@@ -180,7 +201,7 @@ void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char
 
     // print IP address and port
 
-    print_ip_and_port((char*) packet + 26, (char*) packet + 30, (u_char*) packet);
+    print_ip_and_port((u_char*) packet);
 
     // print the package data
     printf("\n");
@@ -189,7 +210,7 @@ void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char
 
 int main(int argc, char *argv[]) {
     // initialize variables with default values
-    char interface[MAX] = "";
+    char interface[255] = "";
     int port = -1;
     bool tcp_flag = 0;
     bool udp_flag = 0;
@@ -232,7 +253,7 @@ int main(int argc, char *argv[]) {
                 // Check if interface name is provided
                 if (argv[optind] == NULL)
                     break;
-                strncpy(interface, argv[optind], MAX - 1);
+                strncpy(interface, argv[optind],  254);
                 break;
             case 'p':
                 // Check if port value is a number
