@@ -47,9 +47,6 @@ int main(int argc, char *argv[]) {
     struct bpf_program filter;
     char filter_exp[255] = "";
 
-    if(argc == 1) {
-        exit(1);
-    }
     // define the program's command line options and their corresponding parameters
     static struct option long_options[] =
             {
