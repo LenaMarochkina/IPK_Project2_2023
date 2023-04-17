@@ -89,10 +89,7 @@ void print_ip_and_ports(u_char *packet) {
         printf("src IP: %s\n", src_ip);
         printf("dst IP: %s\n", dst_ip);
     }
-
-
 }
-
 
 void print_package_data(uint8_t *data, size_t size) {
     // Initialize two size_t variables, i and j

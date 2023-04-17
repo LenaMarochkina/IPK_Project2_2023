@@ -65,6 +65,8 @@ int main(int argc, char *argv[]) {
     int option_index = 0;
     int option;
 
+    int interface_flag = 0;
+
     // loop through all the command line options and their parameters using getopt_long
     while ((option = getopt_long(argc, argv, "i::p:tun:", long_options, &option_index)) != -1) {
         switch (option) {
@@ -72,9 +74,12 @@ int main(int argc, char *argv[]) {
                 break;
             case 'i':
                 // Check if interface name is provided
-                if (argv[optind] == NULL)
+                if (argv[optind] == NULL) {
+                    interface_flag = 1;
                     break;
-                strncpy(interface, argv[optind],  254);
+                }
+                strncpy(interface, argv[optind], 254);
+                interface_flag = 1;
                 break;
             case 'p':
                 // Check if port value is a number
@@ -136,8 +141,13 @@ int main(int argc, char *argv[]) {
 
     // If no interface is provided, print a list of available interfaces and exit
     if (strcmp(interface, "") == 0) {
-        print_interfaces();
-        exit(0);
+        if ((interface_flag == 1 && argc == 2) || (interface_flag == 0 && argc == 1)) {
+            print_interfaces();
+            exit(0);
+        } else {
+            fprintf(stderr, "Error: no interface provided\n");
+            exit(1);
+        }
     }
 
     // If the number of packets to capture is not provided, set it to 1
