@@ -90,6 +90,10 @@ int main(int argc, char *argv[]) {
                     }
                 // convert the port value to an integer
                 port = atoi(optarg);
+                if (port < 1024 || port > 65535) {
+                    fprintf(stderr, "Invalid port number. Please enter a port number between 1024 and 65535\n");
+                    exit(EXIT_FAILURE);
+                }
                 break;
             case 't':
                 tcp_flag = 1;
