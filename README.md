@@ -208,9 +208,146 @@ Finally, the function enters a loop to capture packets using the **pcap_loop fun
 For each packet, it passes the packet to the packet_handler function, which parses and prints the packet's details to 
 the console. If a packet count was specified, the loop exits after capturing the specified number of packets. 
 
-Once all packets have been captured, the function closes the capture device using the **pcap_close** function and 
-exits the program.
+Once all packets have been captured, the function closes the capture device using the **pcap_close**
+function and exits the program.
 
+
+## Testing
+1. The scenario where no interface is provided.
+
+**Input:**
+```
+make && sudo ./ipk-sniffer
+make && sudo ./ipk-sniffer -i
+make && sudo ./ipk-sniffer --interface
+```
+
+**Output:**
+
+```
+en0
+awdl0
+en3
+en4
+stf0
+```
+
+2. The scenario where protocols are given but no interface is provided.
+
+**Input:**
+```
+make && sudo ./ipk-sniffer -t
+make && sudo ./ipk-sniffer --udp
+make && sudo ./ipk-sniffer --udp -t -p 23 --arp
+etc
+```
+
+**Output:**
+```
+Error: no interface provided
+```
+
+4. The scenario where interface is provided but it doesn't exist.
+
+**Input:**
+```
+make && sudo ./ipk-sniffer -i 8908  
+make && sudo ./ipk-sniffer --interface 89fhjhfbw
+```
+**Output:**
+```
+Error: 8908: No such device exists (BIOCSETIF failed: Device not configured)
+```
+
+5. The scenario where port number is not valid.
+
+**Input:**
+```
+make && sudo ./ipk-sniffer -i en0 -p 65536
+```
+
+**Output:**
+```
+Invalid port number. Please enter a port number less than 65535
+```
+
+6. The scenario where protocols and interface are given; the number of packets is set by 1 or not set.
+Port number is valid.
+
+**Input:**
+```
+make && sudo ./ipk-sniffer -i en0 -p 443 --tcp -u -n 1
+make && sudo ./ipk-sniffer -i en0 -p 443 --tcp -u
+```
+
+**Output:**
+```
+timestamp: 2023-04-17T00:43:30.772+02:00
+src mac: b2:67:b5:a7:7e:64
+dst mac: d0:88:0c:77:22:81
+frame length: 70 bytes
+src IP: 149.154.167.151
+dst IP: 172.20.10.5
+src port: 443
+dst port: 65123
+
+0x0000: d0 88 0c 77 22 81 b2 67 b5 a7 7e 64 08 00 45 02 ...w"..g..~d..E.
+0x0010: 00 38 d4 a9 00 00 35 06 bd c9 95 9a a7 97 ac 14 .8....5.........
+0x0020: 0a 05 01 bb fe 63 5a 07 5b 23 5d d0 6e cb 80 18 .....cZ.[#].n...
+0x0030: 80 00 81 ad 00 00 01 01 08 0a cc 4e 24 f1 8c 87 ...........N$...
+0x0040: c8 3d 90 4b 29 82                               .=.K).
+```
+
+7. The scenario where interface and port is given and tcp flag is configured (*port is printed*)
+
+**Input:**
+```
+make && sudo ./ipk-sniffer -i en0 --tcp -p 443
+make && sudo ./ipk-sniffer -i en0 -t -p 443
+make && sudo ./ipk-sniffer -interface en0 --tcp -p 443
+make && sudo ./ipk-sniffer -interface en0 -t -p 443
+```
+**Output:**
+```
+timestamp: 2023-04-17T16:24:04.423+02:00
+src mac: c0:c9:e3:89:20:8a
+dst mac: d0:88:0c:77:22:81
+frame length: 66 bytes
+src IP: 45.14.133.24
+dst IP: 192.168.0.102
+src port: 443
+dst port: 60260
+
+0x0000: d0 88 0c 77 22 81 c0 c9 e3 89 20 8a 08 00 45 00 ...w"..... ...E.
+0x0010: 00 34 10 26 40 00 34 06 c3 69 2d 0e 85 18 c0 a8 .4.&@.4..i-.....
+0x0020: 00 66 01 bb eb 64 77 a9 f7 e7 4a 1c ab 80 80 10 .f...dw...J.....
+0x0030: 02 60 f6 af 00 00 01 01 08 0a ac 2f 3c 5b cd 15 .`........./<[..
+0x0040: 02 8a                                           ..
+
+```
+
+8The scenario where interface is given and arp flag is configured (*no port is printed*)
+
+**Input:**
+```
+make && sudo ./ipk-sniffer -i en0 --arp 
+```
+
+**Output:**
+```
+timestamp: 2023-04-17T16:27:34.361+02:00
+src mac: c0:c9:e3:89:20:8a
+dst mac: ff:ff:ff:ff:ff:ff
+frame length: 42 bytes
+src IP: 192.168.0.1
+dst IP: 192.168.0.101
+
+0x0000: ff ff ff ff ff ff c0 c9 e3 89 20 8a 08 06 00 01 .......... .....
+0x0010: 08 00 06 04 00 01 c0 c9 e3 89 20 8a c0 a8 00 01 .......... .....
+0x0020: 00 00 00 00 00 00 c0 a8 00 65                   .........e
+```
+
+**All received data were verified using the program Wireshark**
 
 ## License
 This project is licensed under the GNU General Public License - see the LICENSE file for details.
