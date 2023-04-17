@@ -22,7 +22,7 @@ void timeval_to_string(struct timeval time, const char *format) {
     timezone_offset[5] = timezone_buffer[4];
     timezone_offset[6] = '\0';
 
-    printf("%s.%03d%s\n", buffer, time.tv_usec / 1000, timezone_offset);
+    printf("%s.%03ld%s\n", buffer, time.tv_usec / 1000, timezone_offset);
 }
 
 void print_ip_and_ports(u_char *packet) {
